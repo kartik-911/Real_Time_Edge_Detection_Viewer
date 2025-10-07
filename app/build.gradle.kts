@@ -16,16 +16,19 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // ✅ C++ configuration flags
+        // Configure CMake & native build
         externalNativeBuild {
             cmake {
-                cppFlags += listOf("-std=c++17", "-frtti", "-fexceptions")
+                // Use libc++ (c++_shared) to fix undefined std::__ndk1 symbols
+                arguments += "-DANDROID_STL=c++_shared"
+                // Enable modern C++ features and RTTI/exceptions
+                cppFlags.add("-std=c++17 -frtti -fexceptions")
             }
         }
 
-        // ✅ Ensure only supported ABIs are built and packaged
+        // Build only for architectures supported by OpenCV static libs
         ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
     }
 
@@ -40,26 +43,18 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "1.8"
     }
 
-    // ✅ Ensure Gradle knows where your native build configuration is
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1" // Match Android Studio’s bundled version
-        }
-    }
-
-    // ✅ Enable native packaging (important!)
-    packaging {
-        jniLibs {
-            useLegacyPackaging = false
+            version = "3.22.1"
         }
     }
 
@@ -77,13 +72,12 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    // ✅ CameraX dependencies
-    val camerax_version = "1.3.1"
-    implementation("androidx.camera:camera-core:$camerax_version")
-    implementation("androidx.camera:camera-camera2:$camerax_version")
-    implementation("androidx.camera:camera-lifecycle:$camerax_version")
-    implementation("androidx.camera:camera-view:$camerax_version")
+    // CameraX
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
 
-    // ✅ Optional: If using OpenCV Java module
-    // implementation(files("libs/opencv-android-sdk/sdk/java/bin/opencv-451.jar"))
+    // OpenCV dependency (native handled via CMake, no Gradle dependency needed)
+    // implementation(project(":opencv"))
 }
