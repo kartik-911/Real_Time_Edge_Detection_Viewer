@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdgeVision - Real-Time Processing Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000000;
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 157, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 157, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .bg-glow {
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 15% 20%, rgba(0, 255, 157, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(0, 194, 255, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(138, 43, 226, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(0, 255, 157, 0.2);
+            margin-bottom: 40px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #00ff9d 0%, #00c2ff 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 0 30px rgba(0, 255, 157, 0.5);
+            animation: logoFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .logo-text h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00ff9d 0%, #00c2ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-text p {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(0, 255, 157, 0.1);
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff9d;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #00ff9d;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Main layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        /* Viewer section */
+        .viewer-section {
+            background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .viewer-header h2 {
+            font-size: 1.5rem;
+            color: #00ff9d;
+        }
+
+        .view-mode {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+
+        .mode-btn.active {
+            background: rgba(0, 255, 157, 0.2);
+            border-color: #00ff9d;
+            color: #00ff9d;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid rgba(0, 255, 157, 0.3);
+            margin-bottom: 20px;
+            box-shadow: 0 0 40px rgba(0, 255, 157, 0.2);
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .canvas-info {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(0, 255, 157, 0.3);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        button {
+            padding: 15px 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00ff9d 0%, #00c2ff 100%);
+            color: #000;
+            box-shadow: 0 10px 30px rgba(0, 255, 157, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0, 255, 157, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Stats panel */
+        .stats-panel {
+            background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 20px;
+            padding: 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            height: fit-content;
+        }
+
+        .stats-header {
+            padding: 25px;
+            border-bottom: 1px solid rgba(0, 255, 157, 0.2);
+            background: linear-gradient(135deg, rgba(0, 255, 157, 0.1) 0%, rgba(0, 194, 255, 0.05) 100%);
+        }
+
+        .stats-header h3 {
+            font-size: 1.3rem;
+            color: #00ff9d;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .stats-content {
+            padding: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0, 255, 157, 0.05) 0%, rgba(0, 194, 255, 0.05) 100%);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #00ff9d 0%, #00c2ff 100%);
+        }
+
+        .stat-card:hover {
+            transform: translateX(5px);
+            border-color: #00ff9d;
+            box-shadow: 0 10px 30px rgba(0, 255, 157, 0.2);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+
+        .stat-unit {
+            font-size: 1rem;
+            color: #00ff9d;
+            margin-left: 5px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            border-top: 1px solid rgba(0, 255, 157, 0.2);
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .footer-link {
+            color: #00ff9d;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .footer-link:hover {
+            color: #00c2ff;
+            text-shadow: 0 0 20px rgba(0, 255, 157, 0.5);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .logo-text h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo-icon">◈</div>
+                <div class="logo-text">
+                    <h1>EdgeVision</h1>
+                    <p>Real-Time Edge Detection</p>
+                </div>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                <span>SYSTEM ACTIVE</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="viewer-section">
+                <div class="viewer-header">
+                    <h2>Live Processor</h2>
+                    <div class="view-mode">
+                        <button class="mode-btn active">Edge View</button>
+                        <button class="mode-btn">Original</button>
+                    </div>
+                </div>
+
+                <div class="canvas-wrapper">
+                    <canvas id="frameCanvas" width="640" height="480"></canvas>
+                    <div class="canvas-info">
+                        <span style="color: #00ff9d;">●</span> PROCESSING
+                    </div>
+                </div>
+
+                <div class="controls-grid">
+                    <button id="uploadBtn" class="btn-primary">
+                        <span style="position: relative; z-index: 1;">📤 Upload Image</span>
+                    </button>
+                    <button id="loadSampleBtn" class="btn-secondary">
+                        <span style="position: relative; z-index: 1;">🔄 Refresh</span>
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+            </div>
+
+            <div class="stats-panel">
+                <div class="stats-header">
+                    <h3>Metrics</h3>
+                </div>
+                <div class="stats-content">
+                    <div class="stat-card">
+                        <div class="stat-label">Frame Rate</div>
+                        <div class="stat-value">
+                            <span id="fpsValue">0.0</span>
+                            <span class="stat-unit">fps</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Resolution</div>
+                        <div class="stat-value" id="resolutionValue" style="font-size: 1.8rem;">0 × 0</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Processing Mode</div>
+                        <div class="stat-value" id="modeValue" style="font-size: 1.5rem;">—</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Last Updated</div>
+                        <div class="stat-value" id="timestampValue" style="font-size: 1.3rem;">--:--:--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Assignment by <a href="#" class="footer-link">FLAM.AI</a>
+        </div>
+    </div>
+
+    <script src="dist/index.js"></script>
+</body>
+</html>
